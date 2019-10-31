@@ -1,0 +1,48 @@
+---
+- name: Install httpd
+  yum:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - apache2
+    - apache2-utils
+    - apache2-dev
+
+- name: Create vhost Folder
+  command: mkdir -p /etc/apache2/vhost.d/
+
+- name: Copy apache2 configuration for ports
+  template:
+    src: ports.conf
+    dest: /etc/apache2/ports.conf
+  notify: restart apache2
+
+- name: Copy apache2 configuration for domain
+  template:
+    src: vhost.conf
+    dest: /etc/apache2/vhost.d/{{ server_hostname }}.conf
+
+- name: Backup original httpd configuration
+  command: mv /etc/apache2/apache2.conf /etc/apache2/apache2.conf_original
+
+- name: Copy apache2 configuration
+  template:
+    src: httpd.conf
+    dest: /etc/apache2/apache2.conf
+
+- name: httpd Start initial
+  service:
+    name: apache2
+    state: started
+    enabled: yes
+    
+- name: Ensure group "apache" exists
+  group:
+    name: apache
+    state: present
+    
+- name: Add user "web_user"
+  user: name="{{ web_user }}" groups=apache append=yes home=/var/www/html/
+
+- name: Change ownership of folder to user created and group apache
+  file: path=/var/www/ owner="{{ web_user }}" group=apache state=directory recurse=yes

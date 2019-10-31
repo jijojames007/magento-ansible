@@ -1,0 +1,117 @@
+---
+- name: Install php and deps
+  yum:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - php{{ php_version }}
+    - php{{ php_version }}-ctype
+    - php{{ php_version }}-curl
+    - php{{ php_version }}-dom
+    - php{{ php_version }}-gd
+    - php{{ php_version }}-intl
+    - php{{ php_version }}-mbstring
+    - php{{ php_version }}-hash
+    - php{{ php_version }}-openssl
+    - php{{ php_version }}-simplexml
+    - php{{ php_version }}-soap
+    - php{{ php_version }}-spl
+    - php{{ php_version }}-libxml
+    - php{{ php_version }}-xsl
+    - php{{ php_version }}-json
+    - php{{ php_version }}-iconv
+    - php{{ php_version }}-mcrypt
+    - php{{ php_version }}-bcmath
+    - php{{ php_version }}-pdo_mysql
+    - php{{ php_version }}-redis
+    - vim
+    - git
+  when: ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat'
+
+- name: Install php and deps
+  apt: name={{ item }} state=installed update_cache=yes
+  tags: php
+  with_items:
+    - php{{ php_version }}
+    - php{{ php_version }}-ctype
+    - php{{ php_version }}-curl
+    - php{{ php_version }}-dom
+    - php{{ php_version }}-gd
+    - php{{ php_version }}-intl
+    - php{{ php_version }}-mbstring
+    - php{{ php_version }}-zip
+ #   - php{{ php_version }}-hash
+ #   - php{{ php_version }}-openssl
+    - php{{ php_version }}-simplexml
+    - php{{ php_version }}-soap
+ #   - php{{ php_version }}-spl
+    - php{{ php_version }}-xml
+    - php{{ php_version }}-xsl
+    - php{{ php_version }}-json
+    - php{{ php_version }}-iconv
+ #   - php{{ php_version }}-mcrypt
+    - php{{ php_version }}-bcmath
+    - php{{ php_version }}-mysqlnd
+    - php{{ php_version }}-redis
+    - php{{ php_version }}-pdo
+    - vim
+    - git
+  when: ansible_distribution == 'Ubuntu' or ansible_distribution == 'Debian'
+
+- name: Install extra PHP packages
+  apt: name={{ item }} state=installed update_cache=yes
+  tags: php-extra
+  with_items: "{{ php_extra_packages }}"
+  when: php_extra_packages is defined and (ansible_distribution == 'Ubuntu' or ansible_distribution == 'Debian')
+
+- name: Set PHP memory limit in php.ini
+  tags: php
+  ini_file:
+    dest: "{{ item }}"
+    section: "PHP"
+    option: memory_limit
+    value: "2048M"
+  with_items:
+    - /etc/php/{{ php_version }}/apache2/php.ini
+    - /etc/php/{{ php_version }}/fpm/php.ini
+    - /etc/php/{{ php_version }}/cli/php.ini    
+  when: php_memory_limit is defined and (ansible_distribution == 'Ubuntu' or ansible_distribution == 'Debian')
+  notify:
+    - Restart php-fpm (Debian)
+
+# file: roles/webtier/tasks/php-fpm.yml
+- name: Install php-fpm
+  tags: php-fpm
+  yum: name=php-fpm state=installed
+  when: ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat'
+
+- name: Install php-fpm
+  tags: php-fpm
+  apt: name=php{{ php_version }}-fpm state=installed
+  when: ansible_distribution == 'Ubuntu' or ansible_distribution == 'Debian'
+
+- name: Make sure php-fpm is running
+  tags: php-fpm
+  service: name=php-fpm state=started enabled=yes
+  when: ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat'
+
+- name: Make sure php-fpm is running
+  tags: php-fpm
+  service: name=php{{ php_version }}-fpm state=started enabled=yes
+  when: ansible_distribution == 'Ubuntu' or ansible_distribution == 'Debian'
+
+- name: Make sure php-fpm is configured
+  tags: php-fpm
+  template: src=php-fpm.conf.j2 dest=/etc/php-fpm.d/www.conf
+  notify:
+    - Restart php-fpm
+  when: ansible_distribution == 'CentOS' or ansible_distribution == 'RedHat'
+
+- name: Make sure php-fpm is configured
+  tags: php-fpm
+  template: src=php-fpm.conf.j2 dest=/etc/php/{{ php_version }}/fpm/pool.d/www.conf
+  notify:
+    - Restart php-fpm (Debian)
+  when: ansible_distribution == 'Ubuntu' or ansible_distribution == 'Debian'
+
+

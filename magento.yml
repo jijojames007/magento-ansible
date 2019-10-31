@@ -1,0 +1,12 @@
+- name: Install Nginx, PHP + Magento and/or Varnish
+  hosts: magento
+  user: lablinumen
+
+  roles:
+    - common
+    - php
+    - composer
+    - mysql
+    - redis
+    - magento
+    - nginx
